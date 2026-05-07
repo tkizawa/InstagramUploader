@@ -1,0 +1,16 @@
+bin/
+obj/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Secrets and environment files
+credentials.json
+
+# Local directories
+BrowserState/
+Uploads/
