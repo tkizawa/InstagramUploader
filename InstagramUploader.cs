@@ -229,7 +229,7 @@ namespace InstagramUploader
             await Task.Delay(1000);
             await page.WaitForSelectorAsync("div[aria-label='キャプションを入力…']");
             
-            string caption = $"アップロードテスト - {Path.GetFileName(filePath)}\n\n(自動投稿システムからの投稿)\n{GetExifCaption(filePath)}";
+            string caption = $"{GetExifCaption(filePath)}";
             await page.FillAsync("div[aria-label='キャプションを入力…']", caption);
 
             // シェア
@@ -288,7 +288,15 @@ namespace InstagramUploader
 
                 // 撮影日時
                 var dateTime = subIfd?.GetString(ExifDirectoryBase.TagDateTimeOriginal);
-                if (!string.IsNullOrEmpty(dateTime)) sb.AppendLine($"撮影日時: {dateTime}");
+                if (!string.IsNullOrEmpty(dateTime))
+                {
+                    // Exifの日付形式(yyyy:MM:dd HH:mm:ss)の最初の2つのコロンをスラッシュに置換する
+                    if (dateTime.Length >= 10 && dateTime[4] == ':' && dateTime[7] == ':')
+                    {
+                        dateTime = $"{dateTime.Substring(0, 4)}/{dateTime.Substring(5, 2)}/{dateTime.Substring(8)}";
+                    }
+                    sb.AppendLine($"撮影日時: {dateTime}");
+                }
 
                 // カメラ名
                 var make = ifd0?.GetString(ExifDirectoryBase.TagMake);
