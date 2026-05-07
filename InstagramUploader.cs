@@ -8,6 +8,7 @@ using Microsoft.Playwright;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 
+
 namespace InstagramUploader
 {
     class Program
