@@ -74,8 +74,30 @@ namespace InstagramUploader
             watcher.Created += OnCreated;
             watcher.EnableRaisingEvents = true;
 
-            Console.WriteLine("終了するにはEnterキーを押してください...");
-            Console.ReadLine();
+            Console.WriteLine("バックグラウンドで監視を実行中...");
+            
+            // CancellationTokenSourceを使用して、Ctrl+Cで安全に終了できるようにする
+            using var cts = new System.Threading.CancellationTokenSource();
+            
+            // Console.CancelKeyPress イベントでCtrl+Cを捕捉
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true; // デフォルトの終了プロセスをキャンセル
+                Console.WriteLine("\nCtrl+C が押されました。監視を終了します...");
+                cts.Cancel();    // キャンセルシグナルを送信
+            };
+
+            try
+            {
+                // CancellationToken を渡して待機する
+                await Task.Delay(System.Threading.Timeout.Infinite, cts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                // Task.Delayがキャンセルされた場合の正常な終了ルート
+            }
+
+            Console.WriteLine("プログラムを終了します。");
         }
 
         private static void ProcessExistingFiles(string folderPath)
