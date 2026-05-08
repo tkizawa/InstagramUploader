@@ -76,15 +76,25 @@ namespace InstagramUploader
 
             Console.WriteLine("バックグラウンドで監視を実行中...");
             
-            // CancellationTokenSourceを使用して、Ctrl+Cで安全に終了できるようにする
+            // CancellationTokenSourceを使用して、安全に終了できるようにする
             using var cts = new System.Threading.CancellationTokenSource();
             
-            // Console.CancelKeyPress イベントでCtrl+Cを捕捉
-            Console.CancelKeyPress += (sender, e) =>
+            try
             {
-                e.Cancel = true; // デフォルトの終了プロセスをキャンセル
-                Console.WriteLine("\nCtrl+C が押されました。監視を終了します...");
-                cts.Cancel();    // キャンセルシグナルを送信
+                // コンソールがない場合(WinExe等)はここで例外が発生するため、try-catchで囲む
+                Console.CancelKeyPress += (sender, e) =>
+                {
+                    e.Cancel = true;
+                    Console.WriteLine("\nCtrl+C が押されました。監視を終了します...");
+                    cts.Cancel();
+                };
+            }
+            catch { } // コンソールが存在しない環境では無視する
+
+            AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+            {
+                Console.WriteLine("プロセス終了シグナルを受信しました。監視を終了します...");
+                cts.Cancel();
             };
 
             try
@@ -156,7 +166,7 @@ namespace InstagramUploader
             // ブラウザのCookieやログイン状態を保持するPersistentContextを使用する
             await using var context = await playwright.Chromium.LaunchPersistentContextAsync(userDataDir, new BrowserTypeLaunchPersistentContextOptions
             {
-                Headless = false,
+                Headless = false, // 状態確認のためブラウザ画面を表示（ヘッドレスモードOFF）
                 ViewportSize = new ViewportSize { Width = 1200, Height = 800 },
                 UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
             });
