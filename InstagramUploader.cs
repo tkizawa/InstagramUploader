@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Microsoft.Playwright;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
@@ -12,19 +13,28 @@ namespace InstagramUploader
 {
     class Program
     {
+        // 実行ファイル（.exe）が配置されている実際のディレクトリを取得する（単一ファイルビルド対策）
+        static string AppDir = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName) ?? AppDomain.CurrentDomain.BaseDirectory;
+
         // 監視するフォルダパス
-        static string WatchFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Uploads");
+        static string WatchFolder = Path.Combine(AppDir, "Uploads");
         
         // ★Instagramのログイン情報 (credentials.jsonから読み込みます)
         static string Username = "";
         static string Password = "";
 
+        // エラー等の確認用にログファイルを出力する
+        static void Log(string msg)
+        {
+            try { File.AppendAllText(Path.Combine(AppDir, "app_log.txt"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {msg}\r\n"); } catch { }
+        }
+
         private static void LoadCredentials()
         {
-            string credPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "credentials.json");
+            string credPath = Path.Combine(AppDir, "credentials.json");
             if (!File.Exists(credPath))
             {
-                Console.WriteLine("エラー: credentials.json が見つかりません。プロジェクトルートと同じ場所に作成してください。");
+                Log($"エラー: {credPath} が見つかりません。");
                 Environment.Exit(1);
             }
 
@@ -37,22 +47,24 @@ namespace InstagramUploader
 
                 if (document.RootElement.TryGetProperty("UploadFolder", out var folderProp) && folderProp.ValueKind == JsonValueKind.String)
                 {
-                    string folder = folderProp.GetString();
+                    string? folder = folderProp.GetString();
                     if (!string.IsNullOrWhiteSpace(folder))
                     {
                         WatchFolder = folder;
                     }
                 }
+                Log("設定を読み込みました。");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"エラー: credentials.json の読み込みに失敗しました。フォーマット等を確認してください。{ex.Message}");
+                Log($"エラー: credentials.json の読み込みに失敗しました。{ex.Message}");
                 Environment.Exit(1);
             }
         }
 
         static async Task Main(string[] args)
         {
+            Log("=== アプリケーション起動 ===");
             LoadCredentials();
 
             if (!System.IO.Directory.Exists(WatchFolder))
@@ -60,7 +72,7 @@ namespace InstagramUploader
                 System.IO.Directory.CreateDirectory(WatchFolder);
             }
 
-            Console.WriteLine($"フォルダの監視を開始します: {WatchFolder}");
+            Log($"フォルダの監視を開始します: {WatchFolder}");
             Console.WriteLine("対象フォルダに .jpg, .jpeg, .png ファイルを配置してください。");
             Console.WriteLine("※実行前にソースコード内の(YOUR_USERNAME / YOUR_PASSWORD)を設定してください。");
 
@@ -75,39 +87,41 @@ namespace InstagramUploader
             watcher.EnableRaisingEvents = true;
 
             Console.WriteLine("バックグラウンドで監視を実行中...");
-            
-            // CancellationTokenSourceを使用して、安全に終了できるようにする
-            using var cts = new System.Threading.CancellationTokenSource();
-            
-            try
-            {
-                // コンソールがない場合(WinExe等)はここで例外が発生するため、try-catchで囲む
-                Console.CancelKeyPress += (sender, e) =>
-                {
-                    e.Cancel = true;
-                    Console.WriteLine("\nCtrl+C が押されました。監視を終了します...");
-                    cts.Cancel();
-                };
-            }
-            catch { } // コンソールが存在しない環境では無視する
+            Console.WriteLine("タスクトレイ（画面右下）のアイコンを右クリックし、「終了」を選択すると安全に終了できます。");
 
-            AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+            // タスクトレイアイコンとメッセージループの起動（アプリケーション終了までブロックする）
+            RunSystemTray();
+        }
+
+        [STAThread]
+        private static void RunSystemTray()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            // タスクトレイアイコンの作成
+            using var notifyIcon = new NotifyIcon();
+            // Windows標準の「情報」アイコンを使用（独自アイコンがある場合は差し替え可能）
+            notifyIcon.Icon = System.Drawing.SystemIcons.Information;
+            notifyIcon.Text = "Instagram Uploader 監視中";
+            notifyIcon.Visible = true;
+
+            // コンテキストメニューの作成
+            var contextMenu = new ContextMenuStrip();
+            var exitItem = new ToolStripMenuItem("監視を終了する");
+            exitItem.Click += (sender, e) =>
             {
-                Console.WriteLine("プロセス終了シグナルを受信しました。監視を終了します...");
-                cts.Cancel();
+                notifyIcon.Visible = false;
+                Application.Exit(); // メッセージループを抜けることで安全に終了
             };
+            contextMenu.Items.Add(exitItem);
+            notifyIcon.ContextMenuStrip = contextMenu;
 
-            try
-            {
-                // CancellationToken を渡して待機する
-                await Task.Delay(System.Threading.Timeout.Infinite, cts.Token);
-            }
-            catch (TaskCanceledException)
-            {
-                // Task.Delayがキャンセルされた場合の正常な終了ルート
-            }
-
-            Console.WriteLine("プログラムを終了します。");
+            // アプリケーションのメッセージループを実行（終了が押されるまでここで待機）
+            Application.Run();
+            
+            // ループを抜けたら、確実にプロセスを終了させる
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
         }
 
         private static void ProcessExistingFiles(string folderPath)
@@ -159,9 +173,10 @@ namespace InstagramUploader
 
         private static async Task UploadToInstagram(string filePath)
         {
+            Log($"アップロード処理を開始: {filePath}");
             using var playwright = await Playwright.CreateAsync();
             
-            string userDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "BrowserState");
+            string userDataDir = Path.Combine(AppDir, "BrowserState");
 
             // ブラウザのCookieやログイン状態を保持するPersistentContextを使用する
             await using var context = await playwright.Chromium.LaunchPersistentContextAsync(userDataDir, new BrowserTypeLaunchPersistentContextOptions
