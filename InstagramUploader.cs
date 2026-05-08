@@ -132,7 +132,7 @@ namespace InstagramUploader
                 string ext = Path.GetExtension(file).ToLower();
                 if (ext == ".jpg" || ext == ".jpeg" || ext == ".png")
                 {
-                    Console.WriteLine($"既存のファイルを検知しました: {file}");
+                    Log($"既存のファイルを検知しました: {file}");
                     // 非同期でアップロード処理を開始（待機しない）
                     _ = UploadToInstagramWrapper(file);
                 }
@@ -147,7 +147,7 @@ namespace InstagramUploader
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"アップロードエラー: {ex.Message}");
+                Log($"アップロードエラー: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -156,7 +156,7 @@ namespace InstagramUploader
             string ext = Path.GetExtension(e.FullPath).ToLower();
             if (ext == ".jpg" || ext == ".jpeg" || ext == ".png")
             {
-                Console.WriteLine($"\n新しい画像が検知されました: {e.FullPath}");
+                Log($"新しい画像が検知されました: {e.FullPath}");
                 // ファイルが完全に書き込まれるまで少し待機
                 await Task.Delay(1000);
                 
@@ -166,7 +166,7 @@ namespace InstagramUploader
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"アップロードエラー: {ex.Message}");
+                    Log($"アップロードエラー: {ex.Message}\n{ex.StackTrace}");
                 }
             }
         }
