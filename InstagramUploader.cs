@@ -13,7 +13,7 @@ namespace InstagramUploader
     class Program
     {
         // 監視するフォルダパス
-        static readonly string WatchFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Uploads");
+        static string WatchFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Uploads");
         
         // ★Instagramのログイン情報 (credentials.jsonから読み込みます)
         static string Username = "";
@@ -34,6 +34,15 @@ namespace InstagramUploader
                 using var document = JsonDocument.Parse(json);
                 Username = document.RootElement.GetProperty("Username").GetString() ?? "";
                 Password = document.RootElement.GetProperty("Password").GetString() ?? "";
+
+                if (document.RootElement.TryGetProperty("UploadFolder", out var folderProp) && folderProp.ValueKind == JsonValueKind.String)
+                {
+                    string folder = folderProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(folder))
+                    {
+                        WatchFolder = folder;
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -303,7 +312,7 @@ namespace InstagramUploader
                 var model = ifd0?.GetString(ExifDirectoryBase.TagModel);
                 if (!string.IsNullOrEmpty(make) || !string.IsNullOrEmpty(model))
                 {
-                    sb.AppendLine($"カメラ名: {make} {model}".Trim());
+                    sb.AppendLine($"カメラ: {make} {model}".Trim());
                 }
 
                 // レンズ名
@@ -311,7 +320,7 @@ namespace InstagramUploader
                 var lensModel = subIfd?.GetString(ExifDirectoryBase.TagLensModel);
                 if (!string.IsNullOrEmpty(lensMake) || !string.IsNullOrEmpty(lensModel))
                 {
-                    sb.AppendLine($"レンズ名: {lensMake} {lensModel}".Trim());
+                    sb.AppendLine($"レンズ: {lensMake} {lensModel}".Trim());
                 }
 
                 // 焦点距離
