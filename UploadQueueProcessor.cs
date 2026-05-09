@@ -6,7 +6,18 @@ namespace InstagramUploader;
 /// <summary>
 /// アップロード対象ファイルを直列に処理するキューです。
 /// </summary>
-public sealed class UploadQueueProcessor : IUploadQueueProcessor
+/// <remarks>
+/// <see cref="UploadQueueProcessor"/> の新しいインスタンスを初期化します。
+/// </remarks>
+/// <param name="uploader">Instagram アップローダーです。</param>
+/// <param name="captionBuilder">キャプション生成器です。</param>
+/// <param name="readinessChecker">ファイル準備完了判定器です。</param>
+/// <param name="logger">ロガーです。</param>
+public sealed class UploadQueueProcessor(
+    IInstagramUploader uploader,
+    ICaptionBuilder captionBuilder,
+    IFileReadinessChecker readinessChecker,
+    IAppLogger logger) : IUploadQueueProcessor
 {
     private readonly Channel<string> _queue = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
     {
@@ -15,31 +26,12 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
     });
 
     private readonly ConcurrentDictionary<string, byte> _scheduledFiles = new(StringComparer.OrdinalIgnoreCase);
-    private readonly IInstagramUploader _uploader;
-    private readonly ICaptionBuilder _captionBuilder;
-    private readonly IFileReadinessChecker _readinessChecker;
-    private readonly IAppLogger _logger;
+    private readonly IInstagramUploader _uploader = uploader;
+    private readonly ICaptionBuilder _captionBuilder = captionBuilder;
+    private readonly IFileReadinessChecker _readinessChecker = readinessChecker;
+    private readonly IAppLogger _logger = logger;
     private Task? _processingTask;
     private bool _stopRequested;
-
-    /// <summary>
-    /// <see cref="UploadQueueProcessor"/> の新しいインスタンスを初期化します。
-    /// </summary>
-    /// <param name="uploader">Instagram アップローダーです。</param>
-    /// <param name="captionBuilder">キャプション生成器です。</param>
-    /// <param name="readinessChecker">ファイル準備完了判定器です。</param>
-    /// <param name="logger">ロガーです。</param>
-    public UploadQueueProcessor(
-        IInstagramUploader uploader,
-        ICaptionBuilder captionBuilder,
-        IFileReadinessChecker readinessChecker,
-        IAppLogger logger)
-    {
-        _uploader = uploader;
-        _captionBuilder = captionBuilder;
-        _readinessChecker = readinessChecker;
-        _logger = logger;
-    }
 
     /// <inheritdoc />
     public void Start()

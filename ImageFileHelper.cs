@@ -5,13 +5,6 @@ namespace InstagramUploader;
 /// </summary>
 public static class ImageFileHelper
 {
-    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".jpg",
-        ".jpeg",
-        ".png"
-    };
-
     /// <summary>
     /// 対象拡張子の画像ファイルかどうかを判定します。
     /// </summary>
@@ -19,7 +12,10 @@ public static class ImageFileHelper
     /// <returns>対応画像であれば <see langword="true"/> です。</returns>
     public static bool IsSupportedImage(string path)
     {
-        return SupportedExtensions.Contains(Path.GetExtension(path));
+        var extension = Path.GetExtension(path.AsSpan());
+        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".png", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

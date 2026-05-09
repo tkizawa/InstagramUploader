@@ -81,18 +81,13 @@ public sealed class UploadQueueProcessorTests
     /// <summary>
     /// アップロード結果を固定で返すテストダブルです。
     /// </summary>
-    private sealed class FakeUploader : IInstagramUploader
+    /// <remarks>
+    /// <see cref="FakeUploader"/> の新しいインスタンスを初期化します。
+    /// </remarks>
+    /// <param name="result">返却する結果です。</param>
+    private sealed class FakeUploader(UploadResult result) : IInstagramUploader
     {
-        private readonly UploadResult _result;
-
-        /// <summary>
-        /// <see cref="FakeUploader"/> の新しいインスタンスを初期化します。
-        /// </summary>
-        /// <param name="result">返却する結果です。</param>
-        public FakeUploader(UploadResult result)
-        {
-            _result = result;
-        }
+        private readonly UploadResult _result = result;
 
         /// <summary>
         /// 呼び出し回数です。
@@ -116,18 +111,13 @@ public sealed class UploadQueueProcessorTests
     /// <summary>
     /// ファイル準備完了判定を固定値で返すテストダブルです。
     /// </summary>
-    private sealed class StubReadinessChecker : IFileReadinessChecker
+    /// <remarks>
+    /// <see cref="StubReadinessChecker"/> の新しいインスタンスを初期化します。
+    /// </remarks>
+    /// <param name="result">返却する判定結果です。</param>
+    private sealed class StubReadinessChecker(bool result) : IFileReadinessChecker
     {
-        private readonly bool _result;
-
-        /// <summary>
-        /// <see cref="StubReadinessChecker"/> の新しいインスタンスを初期化します。
-        /// </summary>
-        /// <param name="result">返却する判定結果です。</param>
-        public StubReadinessChecker(bool result)
-        {
-            _result = result;
-        }
+        private readonly bool _result = result;
 
         /// <inheritdoc />
         public Task<bool> WaitUntilReadyAsync(string filePath, CancellationToken cancellationToken = default)
@@ -139,18 +129,13 @@ public sealed class UploadQueueProcessorTests
     /// <summary>
     /// 固定キャプションを返すテストダブルです。
     /// </summary>
-    private sealed class StubCaptionBuilder : ICaptionBuilder
+    /// <remarks>
+    /// <see cref="StubCaptionBuilder"/> の新しいインスタンスを初期化します。
+    /// </remarks>
+    /// <param name="caption">返却するキャプションです。</param>
+    private sealed class StubCaptionBuilder(string caption) : ICaptionBuilder
     {
-        private readonly string _caption;
-
-        /// <summary>
-        /// <see cref="StubCaptionBuilder"/> の新しいインスタンスを初期化します。
-        /// </summary>
-        /// <param name="caption">返却するキャプションです。</param>
-        public StubCaptionBuilder(string caption)
-        {
-            _caption = caption;
-        }
+        private readonly string _caption = caption;
 
         /// <inheritdoc />
         public string BuildCaption(string filePath)

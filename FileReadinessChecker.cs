@@ -3,28 +3,23 @@ namespace InstagramUploader;
 /// <summary>
 /// ファイルのサイズ安定と排他オープン可否で書き込み完了を判定します。
 /// </summary>
-public sealed class FileReadinessChecker : IFileReadinessChecker
+/// <remarks>
+/// <see cref="FileReadinessChecker"/> の新しいインスタンスを初期化します。
+/// </remarks>
+/// <param name="pollInterval">再試行間隔です。</param>
+/// <param name="maxAttempts">最大試行回数です。</param>
+public sealed class FileReadinessChecker(TimeSpan? pollInterval = null, int maxAttempts = 30) : IFileReadinessChecker
 {
-    /// <summary>
-    /// <see cref="FileReadinessChecker"/> の新しいインスタンスを初期化します。
-    /// </summary>
-    /// <param name="pollInterval">再試行間隔です。</param>
-    /// <param name="maxAttempts">最大試行回数です。</param>
-    public FileReadinessChecker(TimeSpan? pollInterval = null, int maxAttempts = 30)
-    {
-        PollInterval = pollInterval ?? TimeSpan.FromSeconds(1);
-        MaxAttempts = maxAttempts;
-    }
 
     /// <summary>
     /// 再試行間隔です。
     /// </summary>
-    public TimeSpan PollInterval { get; }
+    public TimeSpan PollInterval { get; } = pollInterval ?? TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// 最大試行回数です。
     /// </summary>
-    public int MaxAttempts { get; }
+    public int MaxAttempts { get; } = maxAttempts;
 
     /// <inheritdoc />
     public async Task<bool> WaitUntilReadyAsync(string filePath, CancellationToken cancellationToken = default)

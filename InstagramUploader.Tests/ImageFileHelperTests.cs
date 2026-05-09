@@ -14,8 +14,11 @@ public sealed class ImageFileHelperTests
     [InlineData("photo.jpg", true)]
     [InlineData("photo.jpeg", true)]
     [InlineData("photo.png", true)]
+    [InlineData("photo.JPG", true)]
+    [InlineData("folder\\photo.JPeg", true)]
     [InlineData("photo.gif", false)]
     [InlineData("photo.txt", false)]
+    [InlineData("photo", false)]
     public void IsSupportedImage_ReturnsExpectedResult(string path, bool expected)
     {
         Assert.Equal(expected, ImageFileHelper.IsSupportedImage(path));

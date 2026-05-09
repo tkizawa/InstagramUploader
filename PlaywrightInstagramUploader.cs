@@ -6,7 +6,13 @@ namespace InstagramUploader;
 /// <summary>
 /// Playwright を使って Instagram のブラウザー操作を行うアップローダーです。
 /// </summary>
-public sealed class PlaywrightInstagramUploader : IInstagramUploader
+/// <remarks>
+/// <see cref="PlaywrightInstagramUploader"/> の新しいインスタンスを初期化します。
+/// </remarks>
+/// <param name="settings">アプリケーション設定です。</param>
+/// <param name="logger">ロガーです。</param>
+/// <param name="notifier">ユーザー通知手段です。</param>
+public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger logger, IUserNotifier notifier) : IInstagramUploader
 {
     private static readonly string[] CreateButtonSelectors =
     {
@@ -53,22 +59,9 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
         "text=投稿をシェアしました"
     };
 
-    private readonly AppSettings _settings;
-    private readonly IAppLogger _logger;
-    private readonly IUserNotifier _notifier;
-
-    /// <summary>
-    /// <see cref="PlaywrightInstagramUploader"/> の新しいインスタンスを初期化します。
-    /// </summary>
-    /// <param name="settings">アプリケーション設定です。</param>
-    /// <param name="logger">ロガーです。</param>
-    /// <param name="notifier">ユーザー通知手段です。</param>
-    public PlaywrightInstagramUploader(AppSettings settings, IAppLogger logger, IUserNotifier notifier)
-    {
-        _settings = settings;
-        _logger = logger;
-        _notifier = notifier;
-    }
+    private readonly AppSettings _settings = settings;
+    private readonly IAppLogger _logger = logger;
+    private readonly IUserNotifier _notifier = notifier;
 
     /// <inheritdoc />
     public async Task<UploadResult> UploadAsync(string filePath, string caption, CancellationToken cancellationToken = default)

@@ -6,19 +6,14 @@ namespace InstagramUploader;
 /// <summary>
 /// ファイルへログを書き出すロガーです。
 /// </summary>
-public sealed class FileLogger : IAppLogger
+/// <remarks>
+/// <see cref="FileLogger"/> の新しいインスタンスを初期化します。
+/// </remarks>
+/// <param name="logFilePath">ログファイルの出力先です。</param>
+public sealed class FileLogger(string logFilePath) : IAppLogger
 {
     private readonly object _syncRoot = new();
-    private readonly string _logFilePath;
-
-    /// <summary>
-    /// <see cref="FileLogger"/> の新しいインスタンスを初期化します。
-    /// </summary>
-    /// <param name="logFilePath">ログファイルの出力先です。</param>
-    public FileLogger(string logFilePath)
-    {
-        _logFilePath = logFilePath;
-    }
+    private readonly string _logFilePath = logFilePath;
 
     /// <inheritdoc />
     public void Info(string message)

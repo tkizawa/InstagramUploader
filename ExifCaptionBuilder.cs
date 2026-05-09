@@ -1,4 +1,3 @@
-using System.Text;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 
