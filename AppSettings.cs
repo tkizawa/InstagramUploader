@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 
 namespace InstagramUploader;
@@ -9,15 +10,15 @@ public sealed record AppSettings(
     string BrowserStateDirectory,
     string LogFilePath)
 {
-    public static AppSettings Load(string appDirectory)
+    public static AppSettings Load(string appDirectory, IConfiguration configuration)
     {
         var credentialsPath = Path.Combine(appDirectory, "credentials.json");
-        if (!File.Exists(credentialsPath))
+        if (File.Exists(credentialsPath))
         {
-            throw new FileNotFoundException("credentials.json が見つかりません。", credentialsPath);
+            return Parse(File.ReadAllText(credentialsPath), appDirectory);
         }
 
-        return Parse(File.ReadAllText(credentialsPath), appDirectory);
+        return FromConfiguration(configuration, appDirectory);
     }
 
     public static AppSettings Parse(string json, string appDirectory)
@@ -46,6 +47,25 @@ public sealed record AppSettings(
             Path.Combine(appDirectory, "app_log.txt"));
     }
 
+    public static AppSettings FromConfiguration(IConfiguration configuration, string appDirectory)
+    {
+        var username = GetRequiredString(configuration["Username"], "Username", "User Secrets");
+        var password = GetRequiredString(configuration["Password"], "Password", "User Secrets");
+
+        var uploadFolder = configuration["UploadFolder"];
+        if (string.IsNullOrWhiteSpace(uploadFolder))
+        {
+            uploadFolder = Path.Combine(appDirectory, "Uploads");
+        }
+
+        return new AppSettings(
+            username,
+            password,
+            uploadFolder,
+            Path.Combine(appDirectory, "BrowserState"),
+            Path.Combine(appDirectory, "app_log.txt"));
+    }
+
     private static string GetRequiredString(JsonElement root, string propertyName)
     {
         if (!root.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
@@ -57,6 +77,16 @@ public sealed record AppSettings(
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new InvalidDataException($"{propertyName} が空です。");
+        }
+
+        return value;
+    }
+
+    private static string GetRequiredString(string? value, string propertyName, string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidDataException($"{propertyName} が {sourceName} に設定されていません。");
         }
 
         return value;

@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -41,8 +42,9 @@ internal static class Program
     private static IHost BuildHost(string[] args, string appDir)
     {
         var builder = Host.CreateApplicationBuilder(args);
+        builder.Configuration.AddUserSecrets(typeof(Program).Assembly, optional: true);
 
-        builder.Services.AddSingleton(sp => AppSettings.Load(appDir));
+        builder.Services.AddSingleton(sp => AppSettings.Load(appDir, sp.GetRequiredService<IConfiguration>()));
         builder.Services.AddSingleton<IAppLogger>(sp => new FileLogger(sp.GetRequiredService<AppSettings>().LogFilePath));
         builder.Services.AddSingleton<IUserNotifier, WindowsUserNotifier>();
         builder.Services.AddSingleton<ICaptionBuilder, ExifCaptionBuilder>();

@@ -5,6 +5,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>InstagramUploader-80f9ad8d-6dc7-48b4-b8c4-fd22b5ef0eec</UserSecretsId>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 

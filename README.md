@@ -10,7 +10,11 @@
 
 初めてご使用になる前に、以下のアカウント設定を行ってください。
 
-### 1. 認証情報ファイルの設定
+### 1. 認証情報の設定
+認証情報は **`credentials.json`** を優先して読み込みます。`credentials.json` が存在しない場合は **User Secrets** にフォールバックします。
+
+#### 方法A: credentials.json を使う
+
 アプリケーションと同じフォルダ（または実行ファイルの同階層）に `credentials.json` というファイルを作成します。（`sample-credentials.json` がある場合は、それをコピーして名前を変更してください）
 
 `credentials.json` をテキストエディタ（メモ帳など）で開き、以下のようにご自身のFacebook（Instagram連携済）のログイン情報を入力して保存します。
@@ -25,6 +29,18 @@
 
 * **Username / Password**: Instagramに連携しているFacebookアカウントの情報を入力します。（本システムはFacebookログインボタン経由でログイン処理を行います）
 * **UploadFolder**: 任意のフォルダを監視したい場合にフルパス（例: `C:\\Users\\Name\\Pictures\\Instagram`）を入力します。空欄または項目ごと削除した場合は、アプリと同じフォルダ内に自動作成される `Uploads` フォルダが対象になります。
+
+#### 方法B: User Secrets を使う
+
+`credentials.json` を配置しない場合は、開発環境で以下を実行して User Secrets に設定できます。
+
+```powershell
+dotnet user-secrets set "Username" "あなたのFacebookのメールアドレスまたは電話番号" --project .\InstagramUploader.csproj
+dotnet user-secrets set "Password" "パスワード" --project .\InstagramUploader.csproj
+dotnet user-secrets set "UploadFolder" "C:\Users\Name\Pictures\Instagram" --project .\InstagramUploader.csproj
+```
+
+`UploadFolder` は省略可能です。未設定の場合は既定で `Uploads` フォルダを監視します。
 
 ---
 
