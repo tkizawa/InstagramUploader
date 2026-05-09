@@ -4,6 +4,9 @@ using Microsoft.Extensions.Hosting;
 
 namespace InstagramUploader;
 
+/// <summary>
+/// タスクトレイ UI と終了要求の仲介を行うアプリケーションコンテキストです。
+/// </summary>
 public sealed class TrayApplicationContext : ApplicationContext
 {
     private readonly Control _dispatcher;
@@ -12,6 +15,11 @@ public sealed class TrayApplicationContext : ApplicationContext
     private readonly NotifyIcon _notifyIcon;
     private bool _exitRequested;
 
+    /// <summary>
+    /// <see cref="TrayApplicationContext"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="applicationLifetime">ホストのライフサイクルです。</param>
+    /// <param name="logger">ロガーです。</param>
     public TrayApplicationContext(IHostApplicationLifetime applicationLifetime, IAppLogger logger)
     {
         _applicationLifetime = applicationLifetime;
@@ -39,6 +47,9 @@ public sealed class TrayApplicationContext : ApplicationContext
             ToolTipIcon.Info);
     }
 
+    /// <summary>
+    /// ホスト停止に合わせて UI スレッドへ終了要求を転送します。
+    /// </summary>
     public void RequestExit()
     {
         if (_exitRequested)
@@ -57,6 +68,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         ExitThread();
     }
 
+    /// <summary>
+    /// トレイ資源を破棄しながらメッセージループを終了します。
+    /// </summary>
     protected override void ExitThreadCore()
     {
         _dispatcher.Dispose();
@@ -65,6 +79,9 @@ public sealed class TrayApplicationContext : ApplicationContext
         base.ExitThreadCore();
     }
 
+    /// <summary>
+    /// ユーザー操作によるアプリケーション終了を開始します。
+    /// </summary>
     private void ExitApplication()
     {
         if (_exitRequested)

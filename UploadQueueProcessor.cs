@@ -3,6 +3,9 @@ using System.Threading.Channels;
 
 namespace InstagramUploader;
 
+/// <summary>
+/// アップロード対象ファイルを直列に処理するキューです。
+/// </summary>
 public sealed class UploadQueueProcessor : IUploadQueueProcessor
 {
     private readonly Channel<string> _queue = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
@@ -19,6 +22,13 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
     private Task? _processingTask;
     private bool _stopRequested;
 
+    /// <summary>
+    /// <see cref="UploadQueueProcessor"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="uploader">Instagram アップローダーです。</param>
+    /// <param name="captionBuilder">キャプション生成器です。</param>
+    /// <param name="readinessChecker">ファイル準備完了判定器です。</param>
+    /// <param name="logger">ロガーです。</param>
     public UploadQueueProcessor(
         IInstagramUploader uploader,
         ICaptionBuilder captionBuilder,
@@ -31,11 +41,13 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public void Start()
     {
         _processingTask ??= Task.Run(ProcessLoopAsync);
     }
 
+    /// <inheritdoc />
     public void Enqueue(string filePath)
     {
         if (_stopRequested || !ImageFileHelper.IsSupportedImage(filePath))
@@ -51,6 +63,7 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
         }
     }
 
+    /// <inheritdoc />
     public async Task StopAsync()
     {
         if (_stopRequested)
@@ -72,6 +85,7 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
         }
     }
 
+    /// <inheritdoc />
     public async Task ProcessFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         if (!await _readinessChecker.WaitUntilReadyAsync(filePath, cancellationToken))
@@ -99,6 +113,10 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
         _logger.Info($"アップロード済みフォルダへ移動しました: {filePath}");
     }
 
+    /// <summary>
+    /// キューからファイルを順番に取り出して処理します。
+    /// </summary>
+    /// <returns>処理ループの完了タスクです。</returns>
     private async Task ProcessLoopAsync()
     {
         await foreach (var filePath in _queue.Reader.ReadAllAsync())
@@ -118,6 +136,10 @@ public sealed class UploadQueueProcessor : IUploadQueueProcessor
         }
     }
 
+    /// <summary>
+    /// 成功したファイルを Uploaded フォルダへ移動します。
+    /// </summary>
+    /// <param name="filePath">元ファイルのパスです。</param>
     private static void MoveToUploadedFolder(string filePath)
     {
         var destinationPath = ImageFileHelper.GetUploadedFilePath(filePath);

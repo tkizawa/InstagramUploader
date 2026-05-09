@@ -1,7 +1,13 @@
 namespace InstagramUploader.Tests;
 
+/// <summary>
+/// <see cref="FileReadinessChecker"/> の判定ロジックを検証します。
+/// </summary>
 public sealed class FileReadinessCheckerTests
 {
+    /// <summary>
+    /// 読み取り可能なファイルを準備完了と判定することを検証します。
+    /// </summary>
     [Fact]
     public async Task WaitUntilReadyAsync_ReturnsTrue_WhenFileIsReadable()
     {
@@ -16,6 +22,9 @@ public sealed class FileReadinessCheckerTests
         Assert.True(isReady);
     }
 
+    /// <summary>
+    /// 存在しないファイルを未準備と判定することを検証します。
+    /// </summary>
     [Fact]
     public async Task WaitUntilReadyAsync_ReturnsFalse_WhenFileNeverAppears()
     {

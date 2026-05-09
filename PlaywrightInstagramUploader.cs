@@ -3,6 +3,9 @@ using Microsoft.Playwright;
 
 namespace InstagramUploader;
 
+/// <summary>
+/// Playwright を使って Instagram のブラウザー操作を行うアップローダーです。
+/// </summary>
 public sealed class PlaywrightInstagramUploader : IInstagramUploader
 {
     private static readonly string[] CreateButtonSelectors =
@@ -54,6 +57,12 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
     private readonly IAppLogger _logger;
     private readonly IUserNotifier _notifier;
 
+    /// <summary>
+    /// <see cref="PlaywrightInstagramUploader"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="settings">アプリケーション設定です。</param>
+    /// <param name="logger">ロガーです。</param>
+    /// <param name="notifier">ユーザー通知手段です。</param>
     public PlaywrightInstagramUploader(AppSettings settings, IAppLogger logger, IUserNotifier notifier)
     {
         _settings = settings;
@@ -61,6 +70,7 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
         _notifier = notifier;
     }
 
+    /// <inheritdoc />
     public async Task<UploadResult> UploadAsync(string filePath, string caption, CancellationToken cancellationToken = default)
     {
         try
@@ -140,12 +150,21 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
         }
     }
 
+    /// <summary>
+    /// 現在のページがログイン済み状態かを判定します。
+    /// </summary>
+    /// <param name="page">対象ページです。</param>
+    /// <returns>ログイン済みなら <see langword="true"/> です。</returns>
     private async Task<bool> IsLoggedInAsync(IPage page)
     {
         var createButton = await FindFirstAvailableAsync(page, CreateButtonSelectors, 5000);
         return createButton is not null;
     }
 
+    /// <summary>
+    /// Facebook ログイン経由で Instagram のセッションを確立します。
+    /// </summary>
+    /// <param name="page">操作対象ページです。</param>
     private async Task LoginWithFacebookAsync(IPage page)
     {
         await ClickFirstAvailableAsync(page, FacebookLoginSelectors, required: true);
@@ -167,6 +186,10 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
         }
     }
 
+    /// <summary>
+    /// 任意表示のダイアログを閉じます。
+    /// </summary>
+    /// <param name="page">操作対象ページです。</param>
     private async Task DismissOptionalDialogsAsync(IPage page)
     {
         for (var attempt = 0; attempt < 2; attempt++)
@@ -181,11 +204,21 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
         }
     }
 
+    /// <summary>
+    /// 新規投稿ダイアログを開きます。
+    /// </summary>
+    /// <param name="page">操作対象ページです。</param>
     private async Task OpenCreatePostDialogAsync(IPage page)
     {
         await ClickFirstAvailableAsync(page, CreateButtonSelectors, required: true);
     }
 
+    /// <summary>
+    /// 候補セレクターのうち最初に利用可能な要素をクリックします。
+    /// </summary>
+    /// <param name="page">操作対象ページです。</param>
+    /// <param name="selectors">候補セレクターです。</param>
+    /// <param name="required">必須要素かどうかです。</param>
     private static async Task ClickFirstAvailableAsync(IPage page, IEnumerable<string> selectors, bool required)
     {
         var locator = await FindFirstAvailableAsync(page, selectors, required ? 10000 : 3000);
@@ -197,6 +230,13 @@ public sealed class PlaywrightInstagramUploader : IInstagramUploader
         await locator.ClickAsync();
     }
 
+    /// <summary>
+    /// 候補セレクターのうち最初に利用可能な要素を返します。
+    /// </summary>
+    /// <param name="page">操作対象ページです。</param>
+    /// <param name="selectors">候補セレクターです。</param>
+    /// <param name="timeoutMilliseconds">各候補に対する待機時間です。</param>
+    /// <returns>見つかったロケーター、見つからない場合は <see langword="null"/> です。</returns>
     private static async Task<ILocator?> FindFirstAvailableAsync(IPage page, IEnumerable<string> selectors, float timeoutMilliseconds)
     {
         foreach (var selector in selectors)

@@ -4,8 +4,12 @@ using MetadataExtractor.Formats.Exif;
 
 namespace InstagramUploader;
 
+/// <summary>
+/// EXIF 情報から Instagram 投稿用キャプションを生成します。
+/// </summary>
 public sealed class ExifCaptionBuilder : ICaptionBuilder
 {
+    /// <inheritdoc />
     public string BuildCaption(string filePath)
     {
         var directories = ImageMetadataReader.ReadMetadata(filePath);
@@ -32,6 +36,11 @@ public sealed class ExifCaptionBuilder : ICaptionBuilder
         return string.Join(Environment.NewLine, lines);
     }
 
+    /// <summary>
+    /// 撮影日時をキャプション行として追加します。
+    /// </summary>
+    /// <param name="lines">出力先の行コレクションです。</param>
+    /// <param name="subIfd">EXIF サブ IFD 情報です。</param>
     private static void AppendDateTime(ICollection<string> lines, ExifSubIfdDirectory? subIfd)
     {
         var dateTime = subIfd?.GetString(ExifDirectoryBase.TagDateTimeOriginal);
@@ -48,6 +57,12 @@ public sealed class ExifCaptionBuilder : ICaptionBuilder
         lines.Add($"撮影日時: {dateTime}");
     }
 
+    /// <summary>
+    /// 複数値を結合した行を追加します。
+    /// </summary>
+    /// <param name="lines">出力先の行コレクションです。</param>
+    /// <param name="label">項目ラベルです。</param>
+    /// <param name="values">結合対象の値です。</param>
     private static void AppendCombinedLine(ICollection<string> lines, string label, params string?[] values)
     {
         var combined = string.Join(" ", values.Where(value => !string.IsNullOrWhiteSpace(value)));
@@ -57,6 +72,14 @@ public sealed class ExifCaptionBuilder : ICaptionBuilder
         }
     }
 
+    /// <summary>
+    /// 単一値の行を追加します。
+    /// </summary>
+    /// <param name="lines">出力先の行コレクションです。</param>
+    /// <param name="label">項目ラベルです。</param>
+    /// <param name="value">項目値です。</param>
+    /// <param name="suffix">値の後ろに付ける文字列です。</param>
+    /// <param name="prefix">値の前に付ける文字列です。</param>
     private static void AppendValue(ICollection<string> lines, string label, string? value, string suffix = "", string prefix = "")
     {
         if (!string.IsNullOrWhiteSpace(value))

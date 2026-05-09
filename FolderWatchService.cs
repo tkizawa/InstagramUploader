@@ -1,5 +1,8 @@
 namespace InstagramUploader;
 
+/// <summary>
+/// 監視フォルダのファイルイベントをアップロードキューへ橋渡しします。
+/// </summary>
 public sealed class FolderWatchService : IFolderWatchService
 {
     private readonly FileSystemWatcher _watcher;
@@ -7,6 +10,12 @@ public sealed class FolderWatchService : IFolderWatchService
     private readonly Action<string> _onImageDetected;
     private readonly IAppLogger _logger;
 
+    /// <summary>
+    /// <see cref="FolderWatchService"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="folderPath">監視対象フォルダです。</param>
+    /// <param name="onImageDetected">画像検知時のコールバックです。</param>
+    /// <param name="logger">ロガーです。</param>
     public FolderWatchService(string folderPath, Action<string> onImageDetected, IAppLogger logger)
     {
         _folderPath = folderPath;
@@ -25,6 +34,7 @@ public sealed class FolderWatchService : IFolderWatchService
         _watcher.Renamed += OnRenamed;
     }
 
+    /// <inheritdoc />
     public void Start()
     {
         Directory.CreateDirectory(_folderPath);
@@ -38,26 +48,42 @@ public sealed class FolderWatchService : IFolderWatchService
         _watcher.EnableRaisingEvents = true;
     }
 
+    /// <inheritdoc />
     public void Stop()
     {
         _watcher.EnableRaisingEvents = false;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         _watcher.Dispose();
     }
 
+    /// <summary>
+    /// 作成イベントを処理します。
+    /// </summary>
+    /// <param name="sender">イベント送信元です。</param>
+    /// <param name="e">イベント引数です。</param>
     private void OnCreated(object sender, FileSystemEventArgs e)
     {
         HandlePath(e.FullPath);
     }
 
+    /// <summary>
+    /// リネームイベントを処理します。
+    /// </summary>
+    /// <param name="sender">イベント送信元です。</param>
+    /// <param name="e">イベント引数です。</param>
     private void OnRenamed(object sender, RenamedEventArgs e)
     {
         HandlePath(e.FullPath);
     }
 
+    /// <summary>
+    /// 検知したパスが対象画像であればキューへ渡します。
+    /// </summary>
+    /// <param name="path">検知したファイルパスです。</param>
     private void HandlePath(string path)
     {
         if (!ImageFileHelper.IsSupportedImage(path))

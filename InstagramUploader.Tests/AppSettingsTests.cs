@@ -1,7 +1,13 @@
 namespace InstagramUploader.Tests;
 
+/// <summary>
+/// <see cref="AppSettings"/> の設定読み込み動作を検証します。
+/// </summary>
 public sealed class AppSettingsTests
 {
+    /// <summary>
+    /// UploadFolder が指定されている場合にその値が優先されることを検証します。
+    /// </summary>
     [Fact]
     public void Parse_UsesConfiguredUploadFolder_WhenProvided()
     {
@@ -22,6 +28,9 @@ public sealed class AppSettingsTests
         Assert.Equal("C:\\App\\app_log.txt", settings.LogFilePath);
     }
 
+    /// <summary>
+    /// UploadFolder 未指定時に既定の Uploads フォルダへフォールバックすることを検証します。
+    /// </summary>
     [Fact]
     public void Parse_FallsBackToDefaultUploadFolder_WhenUploadFolderIsMissing()
     {
@@ -37,6 +46,9 @@ public sealed class AppSettingsTests
         Assert.Equal("C:\\App\\Uploads", settings.UploadFolder);
     }
 
+    /// <summary>
+    /// 必須項目が欠けている JSON を拒否することを検証します。
+    /// </summary>
     [Fact]
     public void Parse_Throws_WhenRequiredPropertyIsMissing()
     {
@@ -49,6 +61,9 @@ public sealed class AppSettingsTests
         Assert.Throws<InvalidDataException>(() => AppSettings.Parse(json, "C:\\App"));
     }
 
+    /// <summary>
+    /// 構成オブジェクトから User Secrets 相当の値を読み取れることを検証します。
+    /// </summary>
     [Fact]
     public void FromConfiguration_UsesUserSecretsValues()
     {
@@ -68,6 +83,9 @@ public sealed class AppSettingsTests
         Assert.Equal("C:\\SecretUploads", settings.UploadFolder);
     }
 
+    /// <summary>
+    /// 構成オブジェクトで UploadFolder 未指定時に既定値を使用することを検証します。
+    /// </summary>
     [Fact]
     public void FromConfiguration_FallsBackToDefaultUploadFolder_WhenUploadFolderIsMissing()
     {
@@ -84,6 +102,9 @@ public sealed class AppSettingsTests
         Assert.Equal("C:\\App\\Uploads", settings.UploadFolder);
     }
 
+    /// <summary>
+    /// credentials.json がない場合に構成オブジェクトへフォールバックすることを検証します。
+    /// </summary>
     [Fact]
     public void Load_UsesConfiguration_WhenCredentialsFileIsMissing()
     {

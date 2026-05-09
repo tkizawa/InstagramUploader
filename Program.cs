@@ -5,8 +5,15 @@ using Microsoft.Extensions.Hosting;
 
 namespace InstagramUploader;
 
+/// <summary>
+/// アプリケーションの起動とホスト構築を担当します。
+/// </summary>
 internal static class Program
 {
+    /// <summary>
+    /// アプリケーションを起動し、トレイアプリケーションのメッセージループを開始します。
+    /// </summary>
+    /// <param name="args">起動引数です。</param>
     [STAThread]
     private static async Task Main(string[] args)
     {
@@ -39,6 +46,12 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Generic Host と依存関係注入コンテナーを構築します。
+    /// </summary>
+    /// <param name="args">起動引数です。</param>
+    /// <param name="appDir">実行ファイルの配置ディレクトリです。</param>
+    /// <returns>構築済みのホストです。</returns>
     private static IHost BuildHost(string[] args, string appDir)
     {
         var builder = Host.CreateApplicationBuilder(args);

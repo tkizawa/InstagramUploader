@@ -2,6 +2,9 @@ using Microsoft.Extensions.Hosting;
 
 namespace InstagramUploader;
 
+/// <summary>
+/// ホストの開始停止に合わせて監視処理を起動する Hosted Service です。
+/// </summary>
 public sealed class UploadMonitoringHostedService : IHostedService
 {
     private readonly AppSettings _settings;
@@ -9,6 +12,13 @@ public sealed class UploadMonitoringHostedService : IHostedService
     private readonly IUploadQueueProcessor _uploadQueueProcessor;
     private readonly IAppLogger _logger;
 
+    /// <summary>
+    /// <see cref="UploadMonitoringHostedService"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="settings">アプリケーション設定です。</param>
+    /// <param name="folderWatchService">フォルダ監視サービスです。</param>
+    /// <param name="uploadQueueProcessor">アップロードキューです。</param>
+    /// <param name="logger">ロガーです。</param>
     public UploadMonitoringHostedService(
         AppSettings settings,
         IFolderWatchService folderWatchService,
@@ -21,6 +31,7 @@ public sealed class UploadMonitoringHostedService : IHostedService
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.Info("=== アプリケーション起動 ===");
@@ -32,6 +43,7 @@ public sealed class UploadMonitoringHostedService : IHostedService
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _folderWatchService.Stop();

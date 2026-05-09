@@ -1,17 +1,32 @@
 namespace InstagramUploader;
 
+/// <summary>
+/// ファイルのサイズ安定と排他オープン可否で書き込み完了を判定します。
+/// </summary>
 public sealed class FileReadinessChecker : IFileReadinessChecker
 {
+    /// <summary>
+    /// <see cref="FileReadinessChecker"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="pollInterval">再試行間隔です。</param>
+    /// <param name="maxAttempts">最大試行回数です。</param>
     public FileReadinessChecker(TimeSpan? pollInterval = null, int maxAttempts = 30)
     {
         PollInterval = pollInterval ?? TimeSpan.FromSeconds(1);
         MaxAttempts = maxAttempts;
     }
 
+    /// <summary>
+    /// 再試行間隔です。
+    /// </summary>
     public TimeSpan PollInterval { get; }
 
+    /// <summary>
+    /// 最大試行回数です。
+    /// </summary>
     public int MaxAttempts { get; }
 
+    /// <inheritdoc />
     public async Task<bool> WaitUntilReadyAsync(string filePath, CancellationToken cancellationToken = default)
     {
         long previousLength = -1;
@@ -32,6 +47,13 @@ public sealed class FileReadinessChecker : IFileReadinessChecker
         return false;
     }
 
+    /// <summary>
+    /// 現時点でファイルが安定して読み取れるかを判定します。
+    /// </summary>
+    /// <param name="filePath">確認対象のファイルです。</param>
+    /// <param name="previousLength">前回確認時のファイルサイズです。</param>
+    /// <param name="currentLength">今回確認したファイルサイズです。</param>
+    /// <returns>読み取り可能なら <see langword="true"/> です。</returns>
     private static bool IsReady(string filePath, long previousLength, out long currentLength)
     {
         currentLength = -1;
