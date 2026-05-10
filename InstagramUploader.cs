@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Playwright;
@@ -22,6 +23,9 @@ namespace InstagramUploader
         // ★Instagramのログイン情報 (credentials.jsonから読み込みます)
         static string Username = "";
         static string Password = "";
+
+        // 同時実行を1つに制限するためのセマフォ
+        private static SemaphoreSlim uploadSemaphore = new SemaphoreSlim(1, 1);
 
         // エラー等の確認用にログファイルを出力する
         static void Log(string msg)
@@ -141,6 +145,7 @@ namespace InstagramUploader
 
         private static async Task UploadToInstagramWrapper(string file)
         {
+            await uploadSemaphore.WaitAsync();
             try
             {
                 await UploadToInstagram(file);
@@ -148,6 +153,10 @@ namespace InstagramUploader
             catch (Exception ex)
             {
                 Log($"アップロードエラー: {ex.Message}\n{ex.StackTrace}");
+            }
+            finally
+            {
+                uploadSemaphore.Release();
             }
         }
 
@@ -160,14 +169,8 @@ namespace InstagramUploader
                 // ファイルが完全に書き込まれるまで少し待機
                 await Task.Delay(1000);
                 
-                try
-                {
-                    await UploadToInstagram(e.FullPath);
-                }
-                catch (Exception ex)
-                {
-                    Log($"アップロードエラー: {ex.Message}\n{ex.StackTrace}");
-                }
+                // キューに積んで順番に処理する
+                _ = UploadToInstagramWrapper(e.FullPath);
             }
         }
 
