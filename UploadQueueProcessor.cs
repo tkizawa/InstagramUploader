@@ -30,6 +30,7 @@ public sealed class UploadQueueProcessor(
     private readonly ICaptionBuilder _captionBuilder = captionBuilder;
     private readonly IFileReadinessChecker _readinessChecker = readinessChecker;
     private readonly IAppLogger _logger = logger;
+    private readonly CancellationTokenSource _stoppingCts = new();
     private Task? _processingTask;
     private bool _stopRequested;
 
@@ -69,6 +70,7 @@ public sealed class UploadQueueProcessor(
         }
 
         _stopRequested = true;
+        _stoppingCts.Cancel();
         _queue.Writer.TryComplete();
 
         if (_processingTask is not null)
@@ -111,20 +113,30 @@ public sealed class UploadQueueProcessor(
     /// <returns>処理ループの完了タスクです。</returns>
     private async Task ProcessLoopAsync()
     {
-        await foreach (var filePath in _queue.Reader.ReadAllAsync())
+        try
         {
-            try
+            await foreach (var filePath in _queue.Reader.ReadAllAsync(_stoppingCts.Token))
             {
-                await ProcessFileAsync(filePath);
+                try
+                {
+                    await ProcessFileAsync(filePath, _stoppingCts.Token);
+                }
+                catch (OperationCanceledException) when (_stoppingCts.IsCancellationRequested)
+                {
+                    _logger.Info($"終了要求によりアップロードを中止しました: {filePath}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"アップロード処理でエラーが発生しました: {filePath}", ex);
+                }
+                finally
+                {
+                    _scheduledFiles.TryRemove(filePath, out _);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.Error($"アップロード処理でエラーが発生しました: {filePath}", ex);
-            }
-            finally
-            {
-                _scheduledFiles.TryRemove(filePath, out _);
-            }
+        }
+        catch (OperationCanceledException) when (_stoppingCts.IsCancellationRequested)
+        {
         }
     }
 

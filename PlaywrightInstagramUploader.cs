@@ -68,6 +68,9 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            _logger.Info($"Instagram アップロードを開始します: {filePath}");
+
             using var playwright = await Playwright.CreateAsync();
             await using var context = await playwright.Chromium.LaunchPersistentContextAsync(_settings.BrowserStateDirectory, new BrowserTypeLaunchPersistentContextOptions
             {
@@ -79,19 +82,27 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
             var page = context.Pages.Count > 0 ? context.Pages[0] : await context.NewPageAsync();
             page.SetDefaultTimeout(300000);
 
+            cancellationToken.ThrowIfCancellationRequested();
+            _logger.Info("Instagram を開いています。");
             await page.GotoAsync("https://www.instagram.com/");
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+            _logger.Info("Instagram の初期画面を読み込みました。");
 
-            if (!await IsLoggedInAsync(page))
+            var isLoggedIn = await IsLoggedInAsync(page);
+            _logger.Info(isLoggedIn ? "ログイン済みセッションを検出しました。" : "ログインが必要です。Facebook ログインを開始します。");
+
+            if (!isLoggedIn)
             {
                 _notifier.ShowInfo(
                     "Instagram Uploader",
                     "ログインが必要です。初回のみ Facebook / Instagram 側で認証画面が表示された場合は、ブラウザ上で手動で突破してください。");
 
                 await LoginWithFacebookAsync(page);
+                _logger.Info("Facebook ログイン後の Instagram 画面を確認しました。");
             }
 
             await DismissOptionalDialogsAsync(page);
+            _logger.Info("投稿ダイアログを開きます。");
             await OpenCreatePostDialogAsync(page);
 
             var fileChooser = await page.RunAndWaitForFileChooserAsync(async () =>
@@ -99,6 +110,7 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
                 await ClickFirstAvailableAsync(page, SelectFromComputerSelectors, required: true);
             });
 
+            _logger.Info("画像ファイルを選択します。");
             await fileChooser.SetFilesAsync(filePath);
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
 
@@ -112,8 +124,10 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
                 return UploadResult.Failure("キャプション入力欄を検出できませんでした。");
             }
 
+            _logger.Info("キャプションを入力します。");
             await captionBox.FillAsync(caption);
             await ClickFirstAvailableAsync(page, ShareSelectors, required: true);
+            _logger.Info("投稿完了を待機しています。");
 
             var completion = await FindFirstAvailableAsync(page, CompletionSelectors, 60000);
             if (completion is null)
@@ -130,7 +144,16 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
                 // 完了メッセージのようにクリックできない要素もあるため、検出できれば成功とみなす。
             }
 
+            _logger.Info("Instagram への投稿が完了しました。");
             return UploadResult.Success("投稿が完了しました。");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (PlaywrightException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("アプリケーションの終了によりアップロードを中止しました。", ex, cancellationToken);
         }
         catch (TimeoutException ex)
         {

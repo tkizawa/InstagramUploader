@@ -64,6 +64,29 @@ public sealed class UploadQueueProcessorTests
     }
 
     /// <summary>
+    /// 停止要求時に進行中のアップロードがキャンセルされることを検証します。
+    /// </summary>
+    [Fact]
+    public async Task StopAsync_CancelsInFlightUpload()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var filePath = Path.Combine(tempDirectory.Path, "image.jpg");
+        await File.WriteAllTextAsync(filePath, "payload");
+
+        var uploader = new CancellableUploader();
+        var processor = CreateProcessor(uploader, new StubReadinessChecker(true), new StubCaptionBuilder("caption"));
+
+        processor.Start();
+        processor.Enqueue(filePath);
+
+        await uploader.Started.Task;
+        await processor.StopAsync();
+
+        Assert.True(uploader.CancellationObserved);
+        Assert.True(File.Exists(filePath));
+    }
+
+    /// <summary>
     /// テスト用のプロセッサーを構築します。
     /// </summary>
     /// <param name="uploader">テスト用アップローダーです。</param>
@@ -71,7 +94,7 @@ public sealed class UploadQueueProcessorTests
     /// <param name="captionBuilder">テスト用キャプション生成器です。</param>
     /// <returns>テスト対象のプロセッサーです。</returns>
     private static UploadQueueProcessor CreateProcessor(
-        FakeUploader uploader,
+        IInstagramUploader uploader,
         IFileReadinessChecker readinessChecker,
         ICaptionBuilder captionBuilder)
     {
@@ -105,6 +128,40 @@ public sealed class UploadQueueProcessorTests
             CallCount++;
             LastCaption = caption;
             return Task.FromResult(_result);
+        }
+    }
+
+    /// <summary>
+    /// キャンセルされるまで処理を継続するテストダブルです。
+    /// </summary>
+    private sealed class CancellableUploader : IInstagramUploader
+    {
+        /// <summary>
+        /// アップロード開始通知です。
+        /// </summary>
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// キャンセルを観測したかどうかです。
+        /// </summary>
+        public bool CancellationObserved { get; private set; }
+
+        /// <inheritdoc />
+        public async Task<UploadResult> UploadAsync(string filePath, string caption, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                CancellationObserved = true;
+                throw;
+            }
+
+            return UploadResult.Success();
         }
     }
 
