@@ -1,0 +1,97 @@
+using System.Drawing;
+using System.Windows.Forms;
+using Microsoft.Extensions.Hosting;
+
+namespace InstagramUploader;
+
+/// <summary>
+/// タスクトレイ UI と終了要求の仲介を行うアプリケーションコンテキストです。
+/// </summary>
+public sealed class TrayApplicationContext : ApplicationContext
+{
+    private readonly Control _dispatcher;
+    private readonly IHostApplicationLifetime _applicationLifetime;
+    private readonly IAppLogger _logger;
+    private readonly NotifyIcon _notifyIcon;
+    private bool _exitRequested;
+
+    /// <summary>
+    /// <see cref="TrayApplicationContext"/> の新しいインスタンスを初期化します。
+    /// </summary>
+    /// <param name="applicationLifetime">ホストのライフサイクルです。</param>
+    /// <param name="logger">ロガーです。</param>
+    public TrayApplicationContext(IHostApplicationLifetime applicationLifetime, IAppLogger logger)
+    {
+        _applicationLifetime = applicationLifetime;
+        _logger = logger;
+        _dispatcher = new Control();
+        _dispatcher.CreateControl();
+
+        var contextMenu = new ContextMenuStrip();
+        var exitItem = new ToolStripMenuItem("監視を終了する");
+        exitItem.Click += (_, _) => ExitApplication();
+        contextMenu.Items.Add(exitItem);
+
+        _notifyIcon = new NotifyIcon
+        {
+            Icon = SystemIcons.Information,
+            Text = "Instagram Uploader 監視中",
+            Visible = true,
+            ContextMenuStrip = contextMenu
+        };
+
+        _notifyIcon.ShowBalloonTip(
+            3000,
+            "Instagram Uploader",
+            "フォルダの監視を開始しました。終了する場合はタスクトレイのアイコンを右クリックしてください。",
+            ToolTipIcon.Info);
+    }
+
+    /// <summary>
+    /// ホスト停止に合わせて UI スレッドへ終了要求を転送します。
+    /// </summary>
+    public void RequestExit()
+    {
+        if (_exitRequested)
+        {
+            return;
+        }
+
+        _exitRequested = true;
+
+        if (_dispatcher.IsHandleCreated)
+        {
+            _dispatcher.BeginInvoke(new MethodInvoker(ExitThread));
+            return;
+        }
+
+        ExitThread();
+    }
+
+    /// <summary>
+    /// トレイ資源を破棄しながらメッセージループを終了します。
+    /// </summary>
+    protected override void ExitThreadCore()
+    {
+        _dispatcher.Dispose();
+        _notifyIcon.Visible = false;
+        _notifyIcon.Dispose();
+        base.ExitThreadCore();
+    }
+
+    /// <summary>
+    /// ユーザー操作によるアプリケーション終了を開始します。
+    /// </summary>
+    private void ExitApplication()
+    {
+        if (_exitRequested)
+        {
+            return;
+        }
+
+        _exitRequested = true;
+        _logger.Info("終了メニューが選択されました。");
+        _applicationLifetime.StopApplication();
+        ExitThread();
+    }
+}

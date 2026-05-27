@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstagramUploader", "InstagramUploader.csproj", "{F6F15B23-8D9D-43AC-D75A-E16F41C0AB3C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstagramUploader.Tests", "InstagramUploader.Tests\InstagramUploader.Tests.csproj", "{F0C9BA0E-C2DA-4C91-B7A4-08C1FBF10E44}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{F6F15B23-8D9D-43AC-D75A-E16F41C0AB3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F6F15B23-8D9D-43AC-D75A-E16F41C0AB3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F6F15B23-8D9D-43AC-D75A-E16F41C0AB3C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F0C9BA0E-C2DA-4C91-B7A4-08C1FBF10E44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F0C9BA0E-C2DA-4C91-B7A4-08C1FBF10E44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F0C9BA0E-C2DA-4C91-B7A4-08C1FBF10E44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F0C9BA0E-C2DA-4C91-B7A4-08C1FBF10E44}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

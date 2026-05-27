@@ -1,0 +1,154 @@
+using System.Collections.Concurrent;
+using System.Threading.Channels;
+
+namespace InstagramUploader;
+
+/// <summary>
+/// アップロード対象ファイルを直列に処理するキューです。
+/// </summary>
+/// <remarks>
+/// <see cref="UploadQueueProcessor"/> の新しいインスタンスを初期化します。
+/// </remarks>
+/// <param name="uploader">Instagram アップローダーです。</param>
+/// <param name="captionBuilder">キャプション生成器です。</param>
+/// <param name="readinessChecker">ファイル準備完了判定器です。</param>
+/// <param name="logger">ロガーです。</param>
+public sealed class UploadQueueProcessor(
+    IInstagramUploader uploader,
+    ICaptionBuilder captionBuilder,
+    IFileReadinessChecker readinessChecker,
+    IAppLogger logger) : IUploadQueueProcessor
+{
+    private readonly Channel<string> _queue = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+    {
+        SingleReader = true,
+        SingleWriter = false
+    });
+
+    private readonly ConcurrentDictionary<string, byte> _scheduledFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IInstagramUploader _uploader = uploader;
+    private readonly ICaptionBuilder _captionBuilder = captionBuilder;
+    private readonly IFileReadinessChecker _readinessChecker = readinessChecker;
+    private readonly IAppLogger _logger = logger;
+    private readonly CancellationTokenSource _stoppingCts = new();
+    private Task? _processingTask;
+    private bool _stopRequested;
+
+    /// <inheritdoc />
+    public void Start()
+    {
+        _processingTask ??= Task.Run(ProcessLoopAsync);
+    }
+
+    /// <inheritdoc />
+    public void Enqueue(string filePath)
+    {
+        if (_stopRequested || !ImageFileHelper.IsSupportedImage(filePath))
+        {
+            return;
+        }
+
+        var normalizedPath = Path.GetFullPath(filePath);
+        if (_scheduledFiles.TryAdd(normalizedPath, 0))
+        {
+            _logger.Info($"アップロード待ちに追加しました: {normalizedPath}");
+            _queue.Writer.TryWrite(normalizedPath);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task StopAsync()
+    {
+        if (_stopRequested)
+        {
+            if (_processingTask is not null)
+            {
+                await _processingTask;
+            }
+
+            return;
+        }
+
+        _stopRequested = true;
+        _stoppingCts.Cancel();
+        _queue.Writer.TryComplete();
+
+        if (_processingTask is not null)
+        {
+            await _processingTask;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task ProcessFileAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (!await _readinessChecker.WaitUntilReadyAsync(filePath, cancellationToken))
+        {
+            _logger.Error($"ファイルの書き込み完了を確認できませんでした: {filePath}");
+            return;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            _logger.Error($"アップロード対象ファイルが見つかりません: {filePath}");
+            return;
+        }
+
+        var caption = _captionBuilder.BuildCaption(filePath);
+        var result = await _uploader.UploadAsync(filePath, caption, cancellationToken);
+
+        if (!result.Succeeded)
+        {
+            _logger.Error($"アップロードに失敗しました: {filePath} {result.Message}");
+            return;
+        }
+
+        MoveToUploadedFolder(filePath);
+        _logger.Info($"アップロード済みフォルダへ移動しました: {filePath}");
+    }
+
+    /// <summary>
+    /// キューからファイルを順番に取り出して処理します。
+    /// </summary>
+    /// <returns>処理ループの完了タスクです。</returns>
+    private async Task ProcessLoopAsync()
+    {
+        try
+        {
+            await foreach (var filePath in _queue.Reader.ReadAllAsync(_stoppingCts.Token))
+            {
+                try
+                {
+                    await ProcessFileAsync(filePath, _stoppingCts.Token);
+                }
+                catch (OperationCanceledException) when (_stoppingCts.IsCancellationRequested)
+                {
+                    _logger.Info($"終了要求によりアップロードを中止しました: {filePath}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"アップロード処理でエラーが発生しました: {filePath}", ex);
+                }
+                finally
+                {
+                    _scheduledFiles.TryRemove(filePath, out _);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_stoppingCts.IsCancellationRequested)
+        {
+        }
+    }
+
+    /// <summary>
+    /// 成功したファイルを Uploaded フォルダへ移動します。
+    /// </summary>
+    /// <param name="filePath">元ファイルのパスです。</param>
+    private static void MoveToUploadedFolder(string filePath)
+    {
+        var destinationPath = ImageFileHelper.GetUploadedFilePath(filePath);
+        var destinationDirectory = Path.GetDirectoryName(destinationPath) ?? throw new InvalidOperationException("Uploaded フォルダを作成できません。");
+        Directory.CreateDirectory(destinationDirectory);
+        File.Move(filePath, destinationPath, overwrite: true);
+    }
+}

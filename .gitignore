@@ -7,6 +7,7 @@ obj/
 *.user
 *.userosscache
 *.sln.docstates
+*.lscache
 
 # Secrets and environment files
 credentials.json

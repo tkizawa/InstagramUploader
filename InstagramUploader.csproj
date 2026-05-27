@@ -5,11 +5,13 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>InstagramUploader-80f9ad8d-6dc7-48b4-b8c4-fd22b5ef0eec</UserSecretsId>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="MetadataExtractor" Version="2.9.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
     <PackageReference Include="Microsoft.Playwright" Version="1.59.0" />
   </ItemGroup>
 
@@ -17,6 +19,12 @@
     <None Update="credentials.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="InstagramUploader.Tests\**\*.cs" />
+    <EmbeddedResource Remove="InstagramUploader.Tests\**\*" />
+    <None Remove="InstagramUploader.Tests\**\*" />
   </ItemGroup>
 
 </Project>
