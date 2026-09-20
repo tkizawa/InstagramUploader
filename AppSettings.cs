@@ -1,5 +1,6 @@
-using Microsoft.Extensions.Configuration;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace InstagramUploader;
 
@@ -19,20 +20,148 @@ public sealed record AppSettings(
     string LogFilePath)
 {
     /// <summary>
+    /// 設定ファイルおよびデータ保存先ディレクトリ（%LocalAppData%\InstagramUploader）を取得します。
+    /// </summary>
+    public static string DefaultSettingsDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InstagramUploader");
+
+    /// <summary>
+    /// 設定ファイルの既定の保存先パスを取得します。
+    /// </summary>
+    public static string DefaultCredentialsPath =>
+        Path.Combine(DefaultSettingsDirectory, "credentials.json");
+
+    /// <summary>
+    /// 設定が正しく構成されているか（必須項目が入力されているか）を取得します。
+    /// </summary>
+    public bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(Username) &&
+        !string.IsNullOrWhiteSpace(Password) &&
+        !string.IsNullOrWhiteSpace(UploadFolder);
+
+    /// <summary>
+    /// 未設定時の既定の <see cref="AppSettings"/> インスタンスを生成します。
+    /// </summary>
+    /// <param name="appDirectory">実行ディレクトリです。</param>
+    /// <returns>既定の設定です。</returns>
+    public static AppSettings CreateDefault(string appDirectory)
+    {
+        var dataDir = DefaultSettingsDirectory;
+        return new AppSettings(
+            string.Empty,
+            string.Empty,
+            Path.Combine(dataDir, "Uploads"),
+            Path.Combine(dataDir, "BrowserState"),
+            Path.Combine(dataDir, "app_log.txt"));
+    }
+
+    /// <summary>
+    /// 設定の安全な読み込みを試みます。ファイルがない場合や読み込めない場合は null を返します。
+    /// </summary>
+    /// <param name="appDirectory">実行ディレクトリです。</param>
+    /// <param name="configuration">ホスト構成です。</param>
+    /// <param name="credentialsFilePath">設定ファイルのパス（省略時は LocalAppData 配下）。</param>
+    /// <returns>読み込まれた設定。失敗時は null。</returns>
+    public static AppSettings? TryLoad(string appDirectory, IConfiguration? configuration = null, string? credentialsFilePath = null)
+    {
+        try
+        {
+            var primaryPath = credentialsFilePath ?? DefaultCredentialsPath;
+            if (File.Exists(primaryPath))
+            {
+                return Parse(File.ReadAllText(primaryPath), Path.GetDirectoryName(primaryPath) ?? DefaultSettingsDirectory);
+            }
+
+            var localCredentialsPath = Path.Combine(appDirectory, "credentials.json");
+            if (File.Exists(localCredentialsPath))
+            {
+                return Parse(File.ReadAllText(localCredentialsPath), appDirectory);
+            }
+
+            if (configuration != null)
+            {
+                return FromConfiguration(configuration, appDirectory);
+            }
+        }
+        catch
+        {
+            // 読み込み失敗時は null を返す
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// アカウント情報および監視フォルダを変更した新しい設定インスタンスを返します。
+    /// </summary>
+    /// <param name="username">ユーザー名です。</param>
+    /// <param name="password">パスワードです。</param>
+    /// <param name="uploadFolder">監視対象フォルダです。</param>
+    /// <returns>更新された新しい設定です。</returns>
+    public AppSettings WithValues(string username, string password, string uploadFolder)
+    {
+        return this with
+        {
+            Username = username,
+            Password = password,
+            UploadFolder = uploadFolder
+        };
+    }
+
+    /// <summary>
     /// 設定ファイルまたは User Secrets から設定を読み込みます。
     /// </summary>
     /// <param name="appDirectory">実行ディレクトリです。</param>
     /// <param name="configuration">ホスト構成です。</param>
+    /// <param name="credentialsFilePath">設定ファイルのパス（省略時は LocalAppData 配下）。</param>
     /// <returns>読み込まれた設定です。</returns>
-    public static AppSettings Load(string appDirectory, IConfiguration configuration)
+    public static AppSettings Load(string appDirectory, IConfiguration configuration, string? credentialsFilePath = null)
     {
-        var credentialsPath = Path.Combine(appDirectory, "credentials.json");
-        if (File.Exists(credentialsPath))
+        // 1. 指定パスまたは AppData\Local\InstagramUploader\credentials.json を優先
+        var primaryPath = credentialsFilePath ?? DefaultCredentialsPath;
+        if (File.Exists(primaryPath))
         {
-            return Parse(File.ReadAllText(credentialsPath), appDirectory);
+            return Parse(File.ReadAllText(primaryPath), Path.GetDirectoryName(primaryPath) ?? DefaultSettingsDirectory);
+        }
+
+        // 2. アプリ実行ディレクトリの credentials.json を確認
+        var localCredentialsPath = Path.Combine(appDirectory, "credentials.json");
+        if (File.Exists(localCredentialsPath))
+        {
+            return Parse(File.ReadAllText(localCredentialsPath), appDirectory);
         }
 
         return FromConfiguration(configuration, appDirectory);
+    }
+
+    /// <summary>
+    /// 設定ファイルに設定内容を UTF-8（非 Unicode エスケープ）で保存します。
+    /// </summary>
+    /// <param name="targetPath">保存先ファイルパス。省略時は LocalAppData 配下。</param>
+    public void Save(string? targetPath = null)
+    {
+        var filePath = targetPath ?? DefaultCredentialsPath;
+        var dir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        var model = new
+        {
+            Username,
+            Password,
+            UploadFolder
+        };
+
+        var json = JsonSerializer.Serialize(model, options);
+        File.WriteAllText(filePath, json, System.Text.Encoding.UTF8);
     }
 
     /// <summary>

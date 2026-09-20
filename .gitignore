@@ -15,3 +15,8 @@ credentials.json
 # Local directories
 BrowserState/
 Uploads/
+
+# Installer and packaging outputs
+Installer/
+MSIX/
+publish/

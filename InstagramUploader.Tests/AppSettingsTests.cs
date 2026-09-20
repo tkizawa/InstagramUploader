@@ -117,10 +117,55 @@ public sealed class AppSettingsTests
             })
             .Build();
 
-        var settings = AppSettings.Load(tempDirectory.Path, configuration);
+        var credentialsPath = Path.Combine(tempDirectory.Path, "credentials.json");
+        var settings = AppSettings.Load(tempDirectory.Path, configuration, credentialsPath);
 
         Assert.Equal("user@example.com", settings.Username);
         Assert.Equal("secret", settings.Password);
         Assert.Equal(Path.Combine(tempDirectory.Path, "Uploads"), settings.UploadFolder);
     }
+
+    /// <summary>
+    /// WithValues が新しいプロパティ値を持つインスタンスを生成することを検証します。
+    /// </summary>
+    [Fact]
+    public void WithValues_UpdatesPropertiesCorrectly()
+    {
+        var original = new AppSettings("oldUser", "oldPass", "C:\\OldFolder", "C:\\Browser", "C:\\log.txt");
+        var updated = original.WithValues("newUser", "newPass", "C:\\NewFolder");
+
+        Assert.Equal("newUser", updated.Username);
+        Assert.Equal("newPass", updated.Password);
+        Assert.Equal("C:\\NewFolder", updated.UploadFolder);
+        Assert.Equal("C:\\Browser", updated.BrowserStateDirectory);
+        Assert.Equal("C:\\log.txt", updated.LogFilePath);
+    }
+
+    /// <summary>
+    /// IsConfigured が必須項目の充足状態を正しく判定することを検証します。
+    /// </summary>
+    [Fact]
+    public void IsConfigured_ReturnsExpectedResult()
+    {
+        var incomplete = new AppSettings("", "", "", "C:\\Browser", "C:\\log.txt");
+        Assert.False(incomplete.IsConfigured);
+
+        var configured = new AppSettings("user", "pass", "C:\\Uploads", "C:\\Browser", "C:\\log.txt");
+        Assert.True(configured.IsConfigured);
+    }
+
+    /// <summary>
+    /// CreateDefault が未設定状態の既定インスタンスを生成することを検証します。
+    /// </summary>
+    [Fact]
+    public void CreateDefault_ReturnsDefaultInstance()
+    {
+        var settings = AppSettings.CreateDefault("C:\\App");
+
+        Assert.Empty(settings.Username);
+        Assert.Empty(settings.Password);
+        Assert.False(settings.IsConfigured);
+        Assert.NotNull(settings.UploadFolder);
+    }
 }
+

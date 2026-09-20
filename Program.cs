@@ -18,7 +18,17 @@ internal static class Program
     private static async Task Main(string[] args)
     {
         var appDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
-        IAppLogger bootstrapLogger = new FileLogger(Path.Combine(appDir, "app_log.txt"));
+        var dataDir = AppSettings.DefaultSettingsDirectory;
+        try
+        {
+            Directory.CreateDirectory(dataDir);
+        }
+        catch
+        {
+            dataDir = appDir;
+        }
+
+        IAppLogger bootstrapLogger = new FileLogger(Path.Combine(dataDir, "app_log.txt"));
 
         try
         {
@@ -29,8 +39,16 @@ internal static class Program
             await host.StartAsync();
 
             var trayContext = host.Services.GetRequiredService<TrayApplicationContext>();
+            var settings = host.Services.GetRequiredService<AppSettings>();
             var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
             lifetime.ApplicationStopping.Register(trayContext.RequestExit);
+
+            // 初回起動時などで設定が未完了の場合は、設定画面を自動表示
+            if (!settings.IsConfigured)
+            {
+                trayContext.OpenSettingsForm();
+            }
+
             Application.Run(trayContext);
 
             await host.StopAsync();
@@ -38,9 +56,14 @@ internal static class Program
         catch (Exception ex)
         {
             bootstrapLogger.Error("起動に失敗しました。", ex);
+            var errorMessage = string.Format(
+                LocalizationResources.StartupErrorMessageFormat,
+                Environment.NewLine,
+                ex.Message);
+
             MessageBox.Show(
-                $"起動に失敗しました。{Environment.NewLine}{ex.Message}{Environment.NewLine}詳細は app_log.txt を確認してください。",
-                "Instagram Uploader",
+                errorMessage,
+                LocalizationResources.AppTitle,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -57,13 +80,18 @@ internal static class Program
         var builder = Host.CreateApplicationBuilder(args);
         builder.Configuration.AddUserSecrets(typeof(Program).Assembly, optional: true);
 
-        builder.Services.AddSingleton(sp => AppSettings.Load(appDir, sp.GetRequiredService<IConfiguration>()));
+        // 設定の安全なロード（設定ファイルが存在しないか不完全な場合はデフォルトを適用）
+        builder.Services.AddSingleton(sp =>
+            AppSettings.TryLoad(appDir, sp.GetRequiredService<IConfiguration>()) ?? AppSettings.CreateDefault(appDir));
+
         builder.Services.AddSingleton<IAppLogger>(sp => new FileLogger(sp.GetRequiredService<AppSettings>().LogFilePath));
         builder.Services.AddSingleton<IUserNotifier, WindowsUserNotifier>();
         builder.Services.AddSingleton<ICaptionBuilder, ExifCaptionBuilder>();
         builder.Services.AddSingleton<IFileReadinessChecker, FileReadinessChecker>();
         builder.Services.AddSingleton<IInstagramUploader, PlaywrightInstagramUploader>();
         builder.Services.AddSingleton<IUploadQueueProcessor, UploadQueueProcessor>();
+        builder.Services.AddSingleton<IStartupService>(sp =>
+            new WindowsStartupService(sp.GetRequiredService<IAppLogger>()));
         builder.Services.AddSingleton<IFolderWatchService>(sp =>
             new FolderWatchService(
                 sp.GetRequiredService<AppSettings>().UploadFolder,

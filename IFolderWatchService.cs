@@ -14,4 +14,10 @@ public interface IFolderWatchService : IDisposable
     /// フォルダ監視を停止します。
     /// </summary>
     void Stop();
+
+    /// <summary>
+    /// 監視対象フォルダを変更します。
+    /// </summary>
+    /// <param name="newFolderPath">新しい監視対象フォルダです。</param>
+    void UpdateWatchFolder(string newFolderPath);
 }

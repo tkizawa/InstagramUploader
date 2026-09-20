@@ -71,6 +71,11 @@ public sealed class UploadMonitoringHostedServiceTests
         }
 
         /// <inheritdoc />
+        public void UpdateWatchFolder(string newFolderPath)
+        {
+        }
+
+        /// <inheritdoc />
         public void Dispose()
         {
         }

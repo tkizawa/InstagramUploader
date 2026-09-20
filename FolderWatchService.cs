@@ -6,7 +6,7 @@ namespace InstagramUploader;
 public sealed class FolderWatchService : IFolderWatchService
 {
     private readonly FileSystemWatcher _watcher;
-    private readonly string _folderPath;
+    private string _folderPath;
     private readonly Action<string> _onImageDetected;
     private readonly IAppLogger _logger;
 
@@ -52,6 +52,28 @@ public sealed class FolderWatchService : IFolderWatchService
     public void Stop()
     {
         _watcher.EnableRaisingEvents = false;
+    }
+
+    /// <inheritdoc />
+    public void UpdateWatchFolder(string newFolderPath)
+    {
+        if (string.Equals(_folderPath, newFolderPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _logger.Info($"監視フォルダを変更します: {_folderPath} -> {newFolderPath}");
+        var wasRunning = _watcher.EnableRaisingEvents;
+
+        Stop();
+        _folderPath = newFolderPath;
+        Directory.CreateDirectory(_folderPath);
+        _watcher.Path = _folderPath;
+
+        if (wasRunning)
+        {
+            Start();
+        }
     }
 
     /// <inheritdoc />
