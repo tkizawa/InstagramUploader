@@ -15,7 +15,7 @@ internal static class Program
     /// </summary>
     /// <param name="args">起動引数です。</param>
     [STAThread]
-    private static async Task Main(string[] args)
+    private static void Main(string[] args)
     {
         var appDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
         var dataDir = AppSettings.DefaultSettingsDirectory;
@@ -32,11 +32,14 @@ internal static class Program
 
         try
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            // Windows Forms の DPI・ビジュアルスタイル初期化
+            ApplicationConfiguration.Initialize();
 
             using var host = BuildHost(args, appDir);
-            await host.StartAsync();
+
+            // WinForms の UI メッセージループやコモンダイアログ（FolderBrowserDialog 等）を STA スレッドで
+            // 確実に動作させるため、非同期 await による MTA へのスレッド遷移を避け、STA スレッド上で同期的にホストを開始します。
+            host.Start();
 
             var trayContext = host.Services.GetRequiredService<TrayApplicationContext>();
             var settings = host.Services.GetRequiredService<AppSettings>();
@@ -51,7 +54,8 @@ internal static class Program
 
             Application.Run(trayContext);
 
-            await host.StopAsync();
+            // メッセージループ終了後、ホストを安全に停止
+            host.StopAsync().GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {

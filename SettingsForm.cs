@@ -225,18 +225,37 @@ public sealed class SettingsForm : Form
     /// </summary>
     private void BrowseFolder_Click(object? sender, EventArgs e)
     {
-        using var dialog = new FolderBrowserDialog
+        try
         {
-            Description = LocalizationResources.FolderBrowserDescription,
-            UseDescriptionForTitle = true,
-            InitialDirectory = Directory.Exists(_txtUploadFolder.Text)
-                ? _txtUploadFolder.Text
-                : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
-        };
+            // 入力されたパスが存在すれば初期ディレクトリとし、未入力や不正な場合はピクチャフォルダを使用
+            var currentPath = _txtUploadFolder.Text.Trim();
+            var initialPath = Directory.Exists(currentPath)
+                ? currentPath
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
 
-        if (dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = LocalizationResources.FolderBrowserDescription,
+                UseDescriptionForTitle = true,
+                InitialDirectory = initialPath,
+                SelectedPath = initialPath,
+                AutoUpgradeEnabled = true
+            };
+
+            if (dialog.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
+            {
+                _txtUploadFolder.Text = dialog.SelectedPath;
+            }
+        }
+        catch (Exception ex)
         {
-            _txtUploadFolder.Text = dialog.SelectedPath;
+            // ダイアログ表示時の予期せぬ例外時にもアプリ停止を防ぎ、エラーメッセージを表示
+            MessageBox.Show(
+                this,
+                ex.Message,
+                LocalizationResources.ValidationDialogTitle,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
         }
     }
 

@@ -7,9 +7,9 @@
     <Nullable>enable</Nullable>
     <UserSecretsId>InstagramUploader-80f9ad8d-6dc7-48b4-b8c4-fd22b5ef0eec</UserSecretsId>
     <UseWindowsForms>true</UseWindowsForms>
-    <Version>1.0.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0.1</Version>
+    <AssemblyVersion>1.0.0.1</AssemblyVersion>
+    <FileVersion>1.0.0.1</FileVersion>
     <ApplicationIcon>assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
