@@ -133,23 +133,16 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
     private static readonly string[] CompletionSelectors =
     {
         "div[role='dialog'] :text('投稿をシェアしました')",
-        "div[role='dialog'] :text('シェアしました')",
         "div[role='dialog'] :text('投稿がシェアされました')",
         "div[role='dialog'] :text('Your post has been shared')",
         "div[role='dialog'] :text('Post shared')",
-        "div[role='dialog'] :text('完了')",
-        "div[role='dialog'] :text('Done')",
         "span:has-text('投稿をシェアしました')",
-        "span:has-text('シェアしました')",
         "span:has-text('投稿がシェアされました')",
         "span:has-text('Your post has been shared')",
         "span:has-text('Post shared')",
-        "span:has-text('完了')",
-        "span:has-text('Done')",
         "img[alt*='Animated checkmark']",
         "img[alt*='チェックマーク']",
-        "svg[aria-label*='完了']",
-        "svg[aria-label*='Done']"
+        "img[alt*='Checkmark']"
     };
 
     private readonly AppSettings _settings = settings;
@@ -272,39 +265,45 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
 
             _logger.Info("投稿完了を待機しています。");
 
-            // 投稿完了（完了メッセージまたはダイアログ終了）を待機
-            var completion = await FindFirstAvailableAsync(page, CompletionSelectors, 60000);
-            if (completion is null)
+            // 投稿処理中（シェア中モーダル）または完了表示の監視
+            var waitStartTime = DateTime.UtcNow;
+            var maxWaitDuration = TimeSpan.FromSeconds(90);
+            var isCompleted = false;
+
+            while (DateTime.UtcNow - waitStartTime < maxWaitDuration)
             {
-                // ダイアログが自動的に閉じて投稿完了しているか確認
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // 1. ダイアログが自動的に閉じて投稿完了したか確認
                 var dialogCount = await page.Locator("div[role='dialog']").CountAsync();
                 if (dialogCount == 0)
                 {
                     _logger.Info("投稿ダイアログが閉じたことを確認しました。");
+                    isCompleted = true;
+                    break;
                 }
-                else
+
+                // 2. 「シェア中」等の処理中表示が出ているか確認（出ている間は処理中とみなして待機継続）
+                var isSharingActive = await page.Locator("div[role='dialog'][aria-label*='シェア中'], div[role='dialog'][aria-label*='Sharing'], div[role='dialog'] :text('シェア中')").CountAsync() > 0;
+                if (!isSharingActive)
                 {
-                    // アップロード通信に時間がかかっている可能性を考慮し、追加で30秒待機
-                    completion = await FindFirstAvailableAsync(page, CompletionSelectors, 30000);
-                    dialogCount = await page.Locator("div[role='dialog']").CountAsync();
-                    if (completion is null && dialogCount > 0)
+                    // 3. 完了メッセージまたはチェックマークが表示されているか確認
+                    var completion = await FindFirstAvailableAsync(page, CompletionSelectors, 1000);
+                    if (completion is not null && await completion.IsVisibleAsync())
                     {
-                        await SaveErrorScreenshotAsync(page);
-                        return UploadResult.Failure("投稿完了を確認できませんでした。");
+                        _logger.Info("投稿完了メッセージを確認しました。");
+                        isCompleted = true;
+                        break;
                     }
                 }
+
+                await Task.Delay(1000, cancellationToken);
             }
 
-            if (completion is not null)
+            if (!isCompleted)
             {
-                try
-                {
-                    await completion.ClickAsync(new LocatorClickOptions { Timeout = 3000 });
-                }
-                catch (PlaywrightException)
-                {
-                    // 完了メッセージのようにクリックできない要素もあるため、検出できれば成功とみなす。
-                }
+                await SaveErrorScreenshotAsync(page);
+                return UploadResult.Failure("投稿完了を確認できませんでした。");
             }
 
             // ダイアログがまだ残っている場合は閉じるボタンを試行
@@ -313,12 +312,13 @@ public sealed class PlaywrightInstagramUploader(AppSettings settings, IAppLogger
                 var closeButton = page.Locator("div[role='dialog'] [aria-label='閉じる'], div[role='dialog'] [aria-label='Close'], div[role='dialog'] svg[aria-label='閉じる'], div[role='dialog'] svg[aria-label='Close']").First;
                 if (await closeButton.IsVisibleAsync())
                 {
-                    await closeButton.ClickAsync();
+                    await closeButton.ClickAsync(new LocatorClickOptions { Timeout = 3000 });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 閉じる操作の失敗は問題ないため無視
+                // 閉じる操作の失敗は投稿完了には影響しないため無視
+                _logger.Info($"ダイアログ閉じる操作をスキップしました: {ex.Message}");
             }
 
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);

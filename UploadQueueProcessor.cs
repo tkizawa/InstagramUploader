@@ -103,8 +103,16 @@ public sealed class UploadQueueProcessor(
             return;
         }
 
-        MoveToUploadedFolder(filePath);
-        _logger.Info($"アップロード済みフォルダへ移動しました: {filePath}");
+        try
+        {
+            MoveToUploadedFolder(filePath);
+            _logger.Info($"アップロード済みフォルダへ移動しました: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"アップロード済みフォルダへのファイル移動に失敗しました: {filePath}", ex);
+            throw;
+        }
     }
 
     /// <summary>
@@ -142,6 +150,7 @@ public sealed class UploadQueueProcessor(
 
     /// <summary>
     /// 成功したファイルを Uploaded フォルダへ移動します。
+    /// OneDrive や別プロセスによるファイルロックを考慮してリトライします。
     /// </summary>
     /// <param name="filePath">元ファイルのパスです。</param>
     private static void MoveToUploadedFolder(string filePath)
@@ -149,6 +158,21 @@ public sealed class UploadQueueProcessor(
         var destinationPath = ImageFileHelper.GetUploadedFilePath(filePath);
         var destinationDirectory = Path.GetDirectoryName(destinationPath) ?? throw new InvalidOperationException("Uploaded フォルダを作成できません。");
         Directory.CreateDirectory(destinationDirectory);
-        File.Move(filePath, destinationPath, overwrite: true);
+
+        const int maxRetries = 5;
+        const int delayMilliseconds = 500;
+
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                File.Move(filePath, destinationPath, overwrite: true);
+                return;
+            }
+            catch (IOException) when (attempt < maxRetries)
+            {
+                Thread.Sleep(delayMilliseconds);
+            }
+        }
     }
 }
