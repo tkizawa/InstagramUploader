@@ -5,7 +5,7 @@
 #define MyAppURL "https://github.com/tkizawa/InstagramUploader"
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0.1"
+  #define MyAppVersion "1.0.1.0"
 #endif
 
 #ifndef MyAppArch
